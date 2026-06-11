@@ -1,0 +1,79 @@
+import 'package:go_router/go_router.dart';
+import '../../features/auth/screens/forgot_password_screen.dart';
+import '../../features/auth/screens/login_screen.dart';
+import '../../features/auth/screens/signup_screen.dart';
+import '../../features/auth/screens/splash_screen.dart';
+import '../../features/director/screens/add_supervisor_screen.dart';
+import '../../features/director/screens/add_worker_screen.dart';
+import '../../features/director/screens/director_dashboard_screen.dart';
+
+class AppRoutes {
+  AppRoutes._();
+
+  static const String splash = '/';
+  static const String login = '/login';
+  static const String signup = '/signup';
+  static const String forgotPassword = '/forgot-password';
+  // Role dashboards
+  static const String home = '/home'; // resolves to director for now
+  static const String directorDashboard = '/director';
+  static const String supervisorDashboard = '/supervisor'; // future
+  // Director routes
+  static const String addSupervisor = '/add-supervisor';
+  static const String addWorker = '/add-worker';
+  // Future deep routes
+  static const String estates = '/estates';
+  static const String reports = '/reports';
+  static const String settings = '/settings';
+}
+
+class AppRouter {
+  AppRouter._();
+
+  static final GoRouter router = GoRouter(
+    initialLocation: AppRoutes.splash,
+    debugLogDiagnostics: false,
+    routes: [
+      GoRoute(
+        path: AppRoutes.splash,
+        name: 'splash',
+        builder: (context, state) => const SplashScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.login,
+        name: 'login',
+        builder: (context, state) => const LoginScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.signup,
+        name: 'signup',
+        builder: (context, state) => const SignupScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.forgotPassword,
+        name: 'forgot-password',
+        builder: (context, state) => const ForgotPasswordScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.home,
+        name: 'home',
+        builder: (context, state) => const DirectorDashboardScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.directorDashboard,
+        name: 'director',
+        builder: (context, state) => const DirectorDashboardScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.addSupervisor,
+        name: 'add-supervisor',
+        builder: (context, state) => const AddSupervisorScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.addWorker,
+        name: 'add-worker',
+        builder: (context, state) => const AddWorkerScreen(),
+      ),
+    ],
+  );
+}

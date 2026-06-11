@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "273356245641",
+    "project_id": "tea-estate-app-46582",
+    "storage_bucket": "tea-estate-app-46582.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:273356245641:android:6ff5061dde480b16a59458",
+        "android_client_info": {
+          "package_name": "com.example.tea_state_app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "273356245641-tegt52a446jm7b7nk568uidh4bklv7dn.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBRKTfMnV2I4h9ybQ26hsA0x-Ku-iFkCL0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "273356245641-tegt52a446jm7b7nk568uidh4bklv7dn.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
