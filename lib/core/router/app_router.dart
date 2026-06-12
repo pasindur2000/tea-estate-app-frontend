@@ -7,6 +7,7 @@ import '../../features/director/screens/add_supervisor_screen.dart';
 import '../../features/director/screens/add_worker_screen.dart';
 import '../../features/director/screens/director_dashboard_screen.dart';
 import '../../features/director/screens/estate_selection_screen.dart';
+import '../../features/director/screens/supervisors_screen.dart';
 
 class AppRoutes {
   AppRoutes._();
@@ -22,6 +23,7 @@ class AppRoutes {
   static const String directorDashboard = '/director';
   static const String supervisorDashboard = '/supervisor'; // future
   // Director routes
+  static const String supervisors = '/supervisors';
   static const String addSupervisor = '/add-supervisor';
   static const String addWorker = '/add-worker';
   // Future deep routes
@@ -71,6 +73,11 @@ class AppRouter {
         path: AppRoutes.directorDashboard,
         name: 'director',
         builder: (context, state) => const DirectorDashboardScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.supervisors,
+        name: 'supervisors',
+        builder: (context, state) => const SupervisorsScreen(),
       ),
       GoRoute(
         path: AppRoutes.addSupervisor,

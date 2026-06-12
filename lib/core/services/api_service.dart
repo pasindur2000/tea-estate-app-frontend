@@ -74,6 +74,14 @@ class ApiService {
     return Estate.fromJson(json['data'] as Map<String, dynamic>);
   }
 
+  Future<List<UserProfile>> listSupervisors(
+      String token, String estateId) async {
+    final json = await _get('/users/estate/$estateId', token);
+    return (json['data'] as List)
+        .map((e) => UserProfile.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
   Future<UserProfile> createSupervisor(
     String token, {
     required String name,

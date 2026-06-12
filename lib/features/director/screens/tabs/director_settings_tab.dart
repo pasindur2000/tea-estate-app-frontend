@@ -34,6 +34,11 @@ class DirectorSettingsTab extends ConsumerWidget {
             onTap: () {},
           ),
           _SettingsTile(
+            icon: Icons.people_outline_rounded,
+            label: 'Supervisors',
+            onTap: () => context.push(AppRoutes.supervisors),
+          ),
+          _SettingsTile(
             icon: Icons.notifications_outlined,
             label: 'Notifications',
             onTap: () {},
