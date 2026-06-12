@@ -1,234 +1,75 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/models/worker.dart';
+import '../../../../core/providers/auth_providers.dart';
 import '../../../../core/router/app_router.dart';
-
-// ---------------------------------------------------------------------------
-// Model & mock data
-// ---------------------------------------------------------------------------
-
-class _Worker {
-  final String id;
-  final String name;
-  final String nic;
-  final String phone;
-  final String estateName;
-  final DateTime joinedDate;
-  final double normalDailyKg;
-  final double todayKg;
-
-  const _Worker({
-    required this.id,
-    required this.name,
-    required this.nic,
-    required this.phone,
-    required this.estateName,
-    required this.joinedDate,
-    required this.normalDailyKg,
-    required this.todayKg,
-  });
-
-  double get performanceRatio => todayKg / normalDailyKg;
-
-  String get initials {
-    final parts = name.trim().split(' ');
-    if (parts.length == 1) return parts[0][0].toUpperCase();
-    return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
-  }
-}
-
-final _mockWorkers = [
-  _Worker(
-    id: 'w1',
-    name: 'Kamal Perera',
-    nic: '981234567V',
-    phone: '0771234567',
-    estateName: 'Nuwara Eliya Estate',
-    joinedDate: DateTime(2020, 3, 15),
-    normalDailyKg: 40.0,
-    todayKg: 45.5,
-  ),
-  _Worker(
-    id: 'w2',
-    name: 'Nimal Silva',
-    nic: '875432109V',
-    phone: '0712345678',
-    estateName: 'Kandy Valley Estate',
-    joinedDate: DateTime(2019, 7, 1),
-    normalDailyKg: 38.0,
-    todayKg: 38.2,
-  ),
-  _Worker(
-    id: 'w3',
-    name: 'Sunil Fernando',
-    nic: '921567890V',
-    phone: '0761234567',
-    estateName: 'Dimbula Estate',
-    joinedDate: DateTime(2021, 1, 10),
-    normalDailyKg: 42.0,
-    todayKg: 35.8,
-  ),
-  _Worker(
-    id: 'w4',
-    name: 'Priya Jayawardena',
-    nic: '19985678901',
-    phone: '0781234567',
-    estateName: 'Uva Highland Estate',
-    joinedDate: DateTime(2022, 5, 20),
-    normalDailyKg: 36.0,
-    todayKg: 29.0,
-  ),
-  _Worker(
-    id: 'w5',
-    name: 'Kumari Bandara',
-    nic: '956789012V',
-    phone: '0751234567',
-    estateName: 'Nuwara Eliya Estate',
-    joinedDate: DateTime(2018, 11, 5),
-    normalDailyKg: 44.0,
-    todayKg: 44.0,
-  ),
-  _Worker(
-    id: 'w6',
-    name: 'Rohan Dissanayake',
-    nic: '20001234567',
-    phone: '0701234567',
-    estateName: 'Kandy Valley Estate',
-    joinedDate: DateTime(2023, 2, 14),
-    normalDailyKg: 35.0,
-    todayKg: 31.5,
-  ),
-  _Worker(
-    id: 'w7',
-    name: 'Malini Wickramasinghe',
-    nic: '891234500V',
-    phone: '0791234567',
-    estateName: 'Dimbula Estate',
-    joinedDate: DateTime(2017, 6, 30),
-    normalDailyKg: 46.0,
-    todayKg: 48.2,
-  ),
-];
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-Color _performanceColor(double ratio) {
-  if (ratio >= 1.0) return AppColors.primary;
-  if (ratio >= 0.75) return const Color(0xFFE65100);
-  return AppColors.error;
-}
-
-String _performanceLabel(double ratio) {
-  if (ratio >= 1.0) return 'Exceeding';
-  if (ratio >= 0.75) return 'Near Target';
-  return 'Below Target';
-}
-
-String _fmtDate(DateTime d) {
+String _fmtJoinedDate(String dateStr) {
+  final parts = dateStr.split('-');
+  if (parts.length != 3) return dateStr;
   const months = [
     'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
     'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
   ];
-  return '${d.day} ${months[d.month - 1]} ${d.year}';
+  final m = int.tryParse(parts[1]);
+  final d = int.tryParse(parts[2]);
+  if (m == null || m < 1 || m > 12 || d == null) return dateStr;
+  return '$d ${months[m - 1]} ${parts[0]}';
+}
+
+String _initials(String name) {
+  final parts = name.trim().split(' ').where((p) => p.isNotEmpty).toList();
+  if (parts.isEmpty) return '?';
+  if (parts.length == 1) return parts[0][0].toUpperCase();
+  return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
 }
 
 // ---------------------------------------------------------------------------
 // WorkersTab
 // ---------------------------------------------------------------------------
 
-class WorkersTab extends StatefulWidget {
+class WorkersTab extends ConsumerWidget {
   const WorkersTab({super.key});
 
   @override
-  State<WorkersTab> createState() => _WorkersTabState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    final estate = ref.watch(estateNotifierProvider);
+    if (estate == null) {
+      return const Center(
+        child: CircularProgressIndicator(color: AppColors.primary),
+      );
+    }
 
-class _WorkersTabState extends State<WorkersTab> {
-  late DateTime _selectedDate;
+    final workersAsync = ref.watch(workersProvider(estate.estateId));
 
-  @override
-  void initState() {
-    super.initState();
-    final now = DateTime.now();
-    _selectedDate =
-        DateTime(now.year, now.month, now.day).subtract(const Duration(days: 1));
-  }
-
-  Future<void> _pickDate() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _selectedDate,
-      firstDate: DateTime(2020),
-      lastDate: DateTime.now(),
-      builder: (ctx, child) => Theme(
-        data: Theme.of(ctx).copyWith(
-          colorScheme: const ColorScheme.light(
-            primary: AppColors.primary,
-            onPrimary: Colors.white,
-            surface: Colors.white,
-          ),
-        ),
-        child: child!,
-      ),
-    );
-    if (picked != null) setState(() => _selectedDate = picked);
-  }
-
-  void _openPerformance(_Worker worker) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => _WorkerPerformanceSheet(worker: worker),
-    );
-  }
-
-  String get _dateLabel {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final yesterday = today.subtract(const Duration(days: 1));
-    final sel = DateTime(
-        _selectedDate.year, _selectedDate.month, _selectedDate.day);
-    if (sel == today) return 'Today';
-    if (sel == yesterday) return 'Yesterday';
-    return _fmtDate(_selectedDate);
-  }
-
-  double get _totalKg =>
-      _mockWorkers.fold(0.0, (sum, w) => sum + w.todayKg);
-
-  @override
-  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: _buildAppBar(),
-      body: Column(
-        children: [
-          _buildDateFilterRow(),
-          const SizedBox(height: 12),
-          _buildSummaryBanner(),
-          const SizedBox(height: 12),
-          Expanded(
-            child: ListView.separated(
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 100),
-              itemCount: _mockWorkers.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 10),
-              itemBuilder: (_, i) => _WorkerCard(
-                worker: _mockWorkers[i],
-                onTap: () => _openPerformance(_mockWorkers[i]),
-              ),
-            ),
-          ),
-        ],
+      body: workersAsync.when(
+        loading: () => const Center(
+          child: CircularProgressIndicator(color: AppColors.primary),
+        ),
+        error: (e, _) => _ErrorState(onRetry: () => ref.invalidate(workersProvider(estate.estateId))),
+        data: (workers) => _WorkersList(
+          workers: workers,
+          estateId: estate.estateId,
+        ),
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.push(AppRoutes.addWorker),
+        onPressed: () async {
+          await context.push(AppRoutes.addWorker);
+          ref.invalidate(workersProvider(estate.estateId));
+        },
         backgroundColor: AppColors.primary,
         elevation: 3,
         icon: const Icon(Icons.person_add_alt_1_rounded,
@@ -267,65 +108,74 @@ class _WorkersTabState extends State<WorkersTab> {
       ),
     );
   }
+}
 
-  Widget _buildDateFilterRow() {
-    return Container(
-      color: Colors.white,
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-      child: Row(
+// ---------------------------------------------------------------------------
+// Workers list (data loaded)
+// ---------------------------------------------------------------------------
+
+class _WorkersList extends ConsumerWidget {
+  final List<Worker> workers;
+  final String estateId;
+
+  const _WorkersList({required this.workers, required this.estateId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final active = workers.where((w) => w.isActive).length;
+
+    return RefreshIndicator(
+      color: AppColors.primary,
+      onRefresh: () async => ref.invalidate(workersProvider(estateId)),
+      child: Column(
         children: [
-          Text(
-            'Showing data for',
-            style: GoogleFonts.dmSans(
-              fontSize: 13,
-              color: AppColors.textSecondary,
-            ),
-          ),
-          const SizedBox(width: 8),
-          GestureDetector(
-            onTap: _pickDate,
-            child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: AppColors.primaryFaint,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: AppColors.primaryLight.withValues(alpha: 0.5),
+          _SummaryBanner(total: workers.length, active: active),
+          const SizedBox(height: 12),
+          if (workers.isEmpty)
+            const Expanded(child: _EmptyState())
+          else
+            Expanded(
+              child: ListView.separated(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 100),
+                itemCount: workers.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 10),
+                itemBuilder: (ctx, i) => _WorkerCard(
+                  worker: workers[i],
+                  onTap: () => _openDetails(ctx, workers[i]),
                 ),
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.calendar_today_rounded,
-                      size: 13, color: AppColors.primary),
-                  const SizedBox(width: 6),
-                  Text(
-                    _dateLabel,
-                    style: GoogleFonts.dmSans(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  const Icon(Icons.keyboard_arrow_down_rounded,
-                      size: 14, color: AppColors.primary),
-                ],
-              ),
             ),
-          ),
         ],
       ),
     );
   }
 
-  Widget _buildSummaryBanner() {
+  void _openDetails(BuildContext context, Worker worker) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _WorkerDetailSheet(worker: worker),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Summary banner
+// ---------------------------------------------------------------------------
+
+class _SummaryBanner extends StatelessWidget {
+  final int total;
+  final int active;
+
+  const _SummaryBanner({required this.total, required this.active});
+
+  @override
+  Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
       child: Container(
-        padding:
-            const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
         decoration: BoxDecoration(
           gradient: const LinearGradient(
             colors: [AppColors.primaryDark, AppColors.primary],
@@ -338,8 +188,8 @@ class _WorkersTabState extends State<WorkersTab> {
           children: [
             _SummaryPill(
               icon: Icons.people_alt_rounded,
-              label: 'Workers',
-              value: '${_mockWorkers.length}',
+              label: 'Total',
+              value: '$total',
             ),
             Container(
               width: 1,
@@ -348,20 +198,19 @@ class _WorkersTabState extends State<WorkersTab> {
               margin: const EdgeInsets.symmetric(horizontal: 18),
             ),
             _SummaryPill(
-              icon: Icons.eco_rounded,
-              label: 'Total Harvest',
-              value: '${_totalKg.toStringAsFixed(1)} kg',
+              icon: Icons.check_circle_outline_rounded,
+              label: 'Active',
+              value: '$active',
             ),
             const Spacer(),
             Container(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 10, vertical: 5),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
               decoration: BoxDecoration(
                 color: Colors.white.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
-                _dateLabel,
+                '${total - active} Inactive',
                 style: GoogleFonts.dmSans(
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
@@ -375,10 +224,6 @@ class _WorkersTabState extends State<WorkersTab> {
     );
   }
 }
-
-// ---------------------------------------------------------------------------
-// Summary pill
-// ---------------------------------------------------------------------------
 
 class _SummaryPill extends StatelessWidget {
   final IconData icon;
@@ -428,16 +273,15 @@ class _SummaryPill extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _WorkerCard extends StatelessWidget {
-  final _Worker worker;
+  final Worker worker;
   final VoidCallback onTap;
 
   const _WorkerCard({required this.worker, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    final ratio = worker.performanceRatio;
-    final color = _performanceColor(ratio);
-    final pct = (ratio * 100).round();
+    final isActive = worker.isActive;
+    final color = isActive ? AppColors.primary : AppColors.textHint;
 
     return Material(
       color: Colors.white,
@@ -470,7 +314,7 @@ class _WorkerCard extends StatelessWidget {
                   ),
                   child: Center(
                     child: Text(
-                      worker.initials,
+                      _initials(worker.name),
                       style: GoogleFonts.dmSans(
                         fontSize: 15,
                         fontWeight: FontWeight.w800,
@@ -480,7 +324,7 @@ class _WorkerCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 12),
-                // Name + estate + progress bar
+                // Name + NIC + joined date
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -495,69 +339,41 @@ class _WorkerCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        worker.estateName,
+                        worker.nic,
                         style: GoogleFonts.dmSans(
                           fontSize: 11,
                           color: AppColors.textHint,
                         ),
                       ),
-                      const SizedBox(height: 8),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(4),
-                        child: LinearProgressIndicator(
-                          value: ratio.clamp(0.0, 1.0),
-                          backgroundColor: Colors.grey.shade200,
-                          valueColor: AlwaysStoppedAnimation<Color>(color),
-                          minHeight: 5,
-                        ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          const Icon(Icons.calendar_month_outlined,
+                              size: 11, color: AppColors.textHint),
+                          const SizedBox(width: 3),
+                          Text(
+                            'Joined ${_fmtJoinedDate(worker.joinedDate)}',
+                            style: GoogleFonts.dmSans(
+                              fontSize: 11,
+                              color: AppColors.textHint,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(width: 12),
-                // Kg + percentage badge
+                const SizedBox(width: 8),
+                // Status chip + chevron
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Text(
-                      '${worker.todayKg} kg',
-                      style: GoogleFonts.dmSans(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800,
-                        color: color,
-                        letterSpacing: -0.3,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'of ${worker.normalDailyKg.toStringAsFixed(0)} kg',
-                      style: GoogleFonts.dmSans(
-                        fontSize: 10,
-                        color: AppColors.textHint,
-                      ),
-                    ),
+                    _StatusChip(isActive: isActive),
                     const SizedBox(height: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 7, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: color.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        '$pct%',
-                        style: GoogleFonts.dmSans(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: color,
-                        ),
-                      ),
-                    ),
+                    const Icon(Icons.chevron_right_rounded,
+                        color: AppColors.textHint, size: 18),
                   ],
                 ),
-                const SizedBox(width: 2),
-                Icon(Icons.chevron_right_rounded,
-                    color: AppColors.textHint, size: 18),
               ],
             ),
           ),
@@ -567,22 +383,45 @@ class _WorkerCard extends StatelessWidget {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Performance bottom sheet
-// ---------------------------------------------------------------------------
-
-class _WorkerPerformanceSheet extends StatelessWidget {
-  final _Worker worker;
-
-  const _WorkerPerformanceSheet({required this.worker});
+class _StatusChip extends StatelessWidget {
+  final bool isActive;
+  const _StatusChip({required this.isActive});
 
   @override
   Widget build(BuildContext context) {
-    final ratio = worker.performanceRatio;
-    final color = _performanceColor(ratio);
-    final pct = (ratio * 100).round();
-    final label = _performanceLabel(ratio);
-    final diff = worker.todayKg - worker.normalDailyKg;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: isActive
+            ? AppColors.success.withValues(alpha: 0.12)
+            : AppColors.textHint.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        isActive ? 'Active' : 'Inactive',
+        style: GoogleFonts.dmSans(
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          color: isActive ? AppColors.success : AppColors.textHint,
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Worker detail bottom sheet
+// ---------------------------------------------------------------------------
+
+class _WorkerDetailSheet extends StatelessWidget {
+  final Worker worker;
+
+  const _WorkerDetailSheet({required this.worker});
+
+  @override
+  Widget build(BuildContext context) {
+    final isActive = worker.isActive;
+    final color = isActive ? AppColors.primary : AppColors.textHint;
 
     return Container(
       margin: const EdgeInsets.fromLTRB(12, 0, 12, 20),
@@ -604,7 +443,7 @@ class _WorkerPerformanceSheet extends StatelessWidget {
             ),
           ),
 
-          // Worker header
+          // Avatar + name + status
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Row(
@@ -618,7 +457,7 @@ class _WorkerPerformanceSheet extends StatelessWidget {
                   ),
                   child: Center(
                     child: Text(
-                      worker.initials,
+                      _initials(worker.name),
                       style: GoogleFonts.dmSans(
                         fontSize: 18,
                         fontWeight: FontWeight.w800,
@@ -629,278 +468,195 @@ class _WorkerPerformanceSheet extends StatelessWidget {
                 ),
                 const SizedBox(width: 14),
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        worker.name,
-                        style: GoogleFonts.playfairDisplay(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        worker.estateName,
-                        style: GoogleFonts.dmSans(
-                          fontSize: 12,
-                          color: AppColors.textHint,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
                   child: Text(
-                    label,
-                    style: GoogleFonts.dmSans(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: color,
+                    worker.name,
+                    style: GoogleFonts.playfairDisplay(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
                     ),
                   ),
                 ),
+                _StatusChip(isActive: isActive),
               ],
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 20),
 
-          // NIC + Phone chips
+          // Detail rows
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Row(
+            child: Column(
               children: [
-                _InfoChip(icon: Icons.badge_outlined, label: worker.nic),
-                const SizedBox(width: 8),
-                _InfoChip(icon: Icons.phone_outlined, label: worker.phone),
+                _DetailRow(
+                  icon: Icons.badge_outlined,
+                  label: 'NIC',
+                  value: worker.nic,
+                ),
+                const SizedBox(height: 12),
+                _DetailRow(
+                  icon: Icons.phone_outlined,
+                  label: 'Phone',
+                  value: worker.phone,
+                ),
+                const SizedBox(height: 12),
+                _DetailRow(
+                  icon: Icons.calendar_month_outlined,
+                  label: 'Joined',
+                  value: _fmtJoinedDate(worker.joinedDate),
+                ),
               ],
             ),
           ),
           const SizedBox(height: 28),
-
-          // Arc gauge
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 48),
-            child: TweenAnimationBuilder<double>(
-              tween: Tween(begin: 0.0, end: ratio.clamp(0.0, 1.0)),
-              duration: const Duration(milliseconds: 900),
-              curve: Curves.easeOutCubic,
-              builder: (_, value, __) {
-                return SizedBox(
-                  height: 130,
-                  child: Stack(
-                    alignment: Alignment.bottomCenter,
-                    children: [
-                      CustomPaint(
-                        size: const Size(double.infinity, 130),
-                        painter: _GaugePainter(
-                          progress: value,
-                          progressColor: color,
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              '$pct%',
-                              style: GoogleFonts.dmSans(
-                                fontSize: 36,
-                                fontWeight: FontWeight.w900,
-                                color: color,
-                                letterSpacing: -1.5,
-                              ),
-                            ),
-                            Text(
-                              'of daily target',
-                              style: GoogleFonts.dmSans(
-                                fontSize: 11,
-                                color: AppColors.textHint,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          // Stats row
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Row(
-              children: [
-                Expanded(
-                  child: _StatBox(
-                    icon: Icons.eco_rounded,
-                    label: "Today's Harvest",
-                    value: '${worker.todayKg} kg',
-                    color: color,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _StatBox(
-                    icon: Icons.flag_outlined,
-                    label: 'Daily Target',
-                    value: '${worker.normalDailyKg.toStringAsFixed(0)} kg',
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _StatBox(
-                    icon: diff >= 0
-                        ? Icons.trending_up_rounded
-                        : Icons.trending_down_rounded,
-                    label: diff >= 0 ? 'Over Target' : 'Under Target',
-                    value:
-                        '${diff >= 0 ? '+' : ''}${diff.toStringAsFixed(1)} kg',
-                    color: diff >= 0 ? AppColors.primary : AppColors.error,
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // Joined date footer
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
-            child: Row(
-              children: [
-                const Icon(Icons.calendar_month_outlined,
-                    size: 14, color: AppColors.textHint),
-                const SizedBox(width: 6),
-                Text(
-                  'Joined ${_fmtDate(worker.joinedDate)}',
-                  style: GoogleFonts.dmSans(
-                    fontSize: 12,
-                    color: AppColors.textHint,
-                  ),
-                ),
-              ],
-            ),
-          ),
         ],
       ),
     );
   }
 }
 
-// ---------------------------------------------------------------------------
-// Info chip
-// ---------------------------------------------------------------------------
-
-class _InfoChip extends StatelessWidget {
-  final IconData icon;
-  final String label;
-
-  const _InfoChip({required this.icon, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: AppColors.inputFill,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 13, color: AppColors.textSecondary),
-          const SizedBox(width: 5),
-          Text(
-            label,
-            style: GoogleFonts.dmSans(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: AppColors.textPrimary,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Stat box (inside bottom sheet)
-// ---------------------------------------------------------------------------
-
-class _StatBox extends StatelessWidget {
+class _DetailRow extends StatelessWidget {
   final IconData icon;
   final String label;
   final String value;
-  final Color color;
 
-  const _StatBox({
+  const _DetailRow({
     required this.icon,
     required this.label,
     required this.value,
-    required this.color,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(12),
+    return Row(
+      children: [
+        Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: AppColors.primaryFaint,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, size: 16, color: AppColors.primary),
+        ),
+        const SizedBox(width: 12),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: GoogleFonts.dmSans(
+                fontSize: 11,
+                color: AppColors.textHint,
+              ),
+            ),
+            Text(
+              value,
+              style: GoogleFonts.dmSans(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Empty + error states
+// ---------------------------------------------------------------------------
+
+class _EmptyState extends StatelessWidget {
+  const _EmptyState();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.people_outline_rounded,
+                size: 64, color: AppColors.primaryLight),
+            const SizedBox(height: 20),
+            Text(
+              'No workers yet',
+              style: GoogleFonts.playfairDisplay(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Tap "Add Worker" to register the first worker.',
+              style: GoogleFonts.dmSans(
+                  color: AppColors.textSecondary, fontSize: 14),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, size: 16, color: color),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            style: GoogleFonts.dmSans(
-              fontSize: 13,
-              fontWeight: FontWeight.w800,
-              color: color,
-              letterSpacing: -0.3,
+    );
+  }
+}
+
+class _ErrorState extends StatelessWidget {
+  final VoidCallback onRetry;
+  const _ErrorState({required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.wifi_off_rounded,
+                size: 52, color: AppColors.textHint),
+            const SizedBox(height: 16),
+            Text(
+              'Failed to load workers. Please check your connection.',
+              style: GoogleFonts.dmSans(
+                  color: AppColors.textSecondary, fontSize: 14),
+              textAlign: TextAlign.center,
             ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: GoogleFonts.dmSans(
-              fontSize: 10,
-              color: AppColors.textSecondary,
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh_rounded),
+              label: Text('Retry',
+                  style: GoogleFonts.dmSans(fontWeight: FontWeight.w600)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 }
 
 // ---------------------------------------------------------------------------
-// Semicircular gauge painter
+// Gauge painter (kept for future use when harvest data is available)
 // ---------------------------------------------------------------------------
 
 class _GaugePainter extends CustomPainter {
-  final double progress; // 0.0 – 1.0
+  final double progress;
   final Color progressColor;
 
-  const _GaugePainter({
-    required this.progress,
-    required this.progressColor,
-  });
+  const _GaugePainter({required this.progress, required this.progressColor});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -908,26 +664,19 @@ class _GaugePainter extends CustomPainter {
     final center = Offset(size.width / 2, size.height);
     final radius = (size.width / 2) - strokeWidth;
 
-    // Track arc
     canvas.drawArc(
       Rect.fromCircle(center: center, radius: radius),
-      math.pi,
-      math.pi,
-      false,
+      math.pi, math.pi, false,
       Paint()
         ..color = Colors.grey.shade200
         ..style = PaintingStyle.stroke
         ..strokeWidth = strokeWidth
         ..strokeCap = StrokeCap.round,
     );
-
-    // Progress arc
     if (progress > 0.01) {
       canvas.drawArc(
         Rect.fromCircle(center: center, radius: radius),
-        math.pi,
-        math.pi * progress,
-        false,
+        math.pi, math.pi * progress, false,
         Paint()
           ..color = progressColor
           ..style = PaintingStyle.stroke

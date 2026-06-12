@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/estate.dart';
+import '../models/tea_entry.dart';
 import '../models/user_profile.dart';
+import '../models/worker.dart';
 import '../notifiers/estate_notifier.dart';
 import '../services/api_service.dart';
 import '../services/secure_storage_service.dart';
@@ -40,3 +42,22 @@ final authTokenProvider = Provider<String?>((ref) {
   final authState = ref.watch(authNotifierProvider);
   return authState is AuthAuthenticated ? authState.token : null;
 });
+
+/// Workers for a given estateId — cached across tab switches.
+final workersProvider =
+    FutureProvider.family<List<Worker>, String>((ref, estateId) async {
+  final token = ref.read(authTokenProvider)!;
+  return ref.read(apiServiceProvider).listWorkers(token, estateId);
+});
+
+/// Tea entries for an estate. Pass (estateId, date) — date null fetches all.
+final teaEntriesProvider =
+    FutureProvider.family<List<TeaEntry>, (String, String?)>(
+  (ref, params) async {
+    final token = ref.read(authTokenProvider)!;
+    final (estateId, date) = params;
+    return ref
+        .read(apiServiceProvider)
+        .listTeaEntries(token, estateId, date: date);
+  },
+);

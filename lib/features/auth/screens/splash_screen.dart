@@ -49,15 +49,14 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         curve: const Interval(0.0, 0.5, curve: Curves.easeOut),
       ),
     );
-    _textFade = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _textController, curve: Curves.easeOut),
-    );
+    _textFade = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _textController, curve: Curves.easeOut));
     _textSlide = Tween<Offset>(
       begin: const Offset(0, 0.25),
       end: Offset.zero,
-    ).animate(
-      CurvedAnimation(parent: _textController, curve: Curves.easeOut),
-    );
+    ).animate(CurvedAnimation(parent: _textController, curve: Curves.easeOut));
 
     _logoController.forward().then((_) => _textController.forward());
   }
@@ -110,7 +109,11 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                 right: -50,
                 child: Opacity(
                   opacity: 0.07,
-                  child: Icon(Icons.eco_rounded, size: 220, color: Colors.white),
+                  child: Icon(
+                    Icons.eco_rounded,
+                    size: 220,
+                    color: Colors.white,
+                  ),
                 ),
               ),
               Positioned(
@@ -118,7 +121,11 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                 left: -50,
                 child: Opacity(
                   opacity: 0.05,
-                  child: Icon(Icons.eco_rounded, size: 180, color: Colors.white),
+                  child: Icon(
+                    Icons.eco_rounded,
+                    size: 180,
+                    color: Colors.white,
+                  ),
                 ),
               ),
               Positioned(
@@ -126,7 +133,11 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                 left: -30,
                 child: Opacity(
                   opacity: 0.04,
-                  child: Icon(Icons.eco_rounded, size: 100, color: Colors.white),
+                  child: Icon(
+                    Icons.eco_rounded,
+                    size: 100,
+                    color: Colors.white,
+                  ),
                 ),
               ),
               // Main content
@@ -136,10 +147,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                   children: [
                     FadeTransition(
                       opacity: _logoFade,
-                      child: ScaleTransition(
-                        scale: _logoScale,
-                        child: _Logo(),
-                      ),
+                      child: ScaleTransition(scale: _logoScale, child: _Logo()),
                     ),
                     const SizedBox(height: 36),
                     SlideTransition(
@@ -149,7 +157,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                         child: Column(
                           children: [
                             Text(
-                              'TeaState',
+                              'TeaEstate',
                               style: GoogleFonts.playfairDisplay(
                                 fontSize: 44,
                                 fontWeight: FontWeight.bold,

@@ -1,7 +1,9 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/estate.dart';
+import '../models/tea_entry.dart';
 import '../models/user_profile.dart';
+import '../models/worker.dart';
 
 class ApiException implements Exception {
   final int statusCode;
@@ -80,6 +82,66 @@ class ApiService {
     return (json['data'] as List)
         .map((e) => UserProfile.fromJson(e as Map<String, dynamic>))
         .toList();
+  }
+
+  Future<List<Worker>> listWorkers(String token, String estateId) async {
+    final json = await _get('/workers/estate/$estateId', token);
+    return (json['data'] as List)
+        .map((e) => Worker.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<Worker> createWorker(
+    String token, {
+    required String name,
+    required String nic,
+    required String phone,
+    required String estateId,
+    required String joinedDate,
+  }) async {
+    final json = await _post('/workers/', token, {
+      'name': name,
+      'nic': nic,
+      'phone': phone,
+      'estateId': estateId,
+      'joinedDate': joinedDate,
+      'status': 'active',
+    });
+    return Worker.fromJson(json['data'] as Map<String, dynamic>);
+  }
+
+  Future<List<TeaEntry>> listTeaEntries(
+    String token,
+    String estateId, {
+    String? date,
+  }) async {
+    final path = date != null
+        ? '/tea-entries/estate/$estateId?date=$date'
+        : '/tea-entries/estate/$estateId';
+    final json = await _get(path, token);
+    return (json['data'] as List)
+        .map((e) => TeaEntry.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<void> createTeaEntry(
+    String token, {
+    required String estateId,
+    required String workerId,
+    required String workerName,
+    required String date,
+    required double kg,
+    required double ratePerKg,
+  }) async {
+    await _post('/tea-entries/', token, {
+      'estateId': estateId,
+      'workerId': workerId,
+      'workerName': workerName,
+      'date': date,
+      'kg': kg,
+      'ratePerKg': ratePerKg,
+      'totalAmount': kg * ratePerKg,
+    });
   }
 
   Future<UserProfile> createSupervisor(

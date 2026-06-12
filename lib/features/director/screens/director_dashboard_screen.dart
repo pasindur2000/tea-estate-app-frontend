@@ -22,6 +22,7 @@ class _DirectorDashboardScreenState extends State<DirectorDashboardScreen> {
     final tabs = [
       DirectorHomeTab(
         onViewReports: () => setState(() => _selectedIndex = 2),
+        onViewWorkers: () => setState(() => _selectedIndex = 1),
       ),
       const WorkersTab(),
       const ReportsTab(),

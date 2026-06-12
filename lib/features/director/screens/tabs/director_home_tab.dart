@@ -1,64 +1,115 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/models/tea_entry.dart';
+import '../../../../core/providers/auth_providers.dart';
 import '../../../../core/router/app_router.dart';
 
 // ---------------------------------------------------------------------------
-// Mock data — replace with real API data later
+// Helpers
 // ---------------------------------------------------------------------------
-class _WorkerActivity {
-  final int rank;
-  final String name;
-  final double weightKg;
-  final double valueRs;
-  final String entryTime;
 
-  const _WorkerActivity({
-    required this.rank,
-    required this.name,
-    required this.weightKg,
-    required this.valueRs,
-    required this.entryTime,
-  });
+String _todayStr() {
+  final now = DateTime.now();
+  return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
 }
 
-const _topWorkers = [
-  _WorkerActivity(
-    rank: 1,
-    name: 'Kamal Perera',
-    weightKg: 45.5,
-    valueRs: 455.0,
-    entryTime: '09:15 AM',
-  ),
-  _WorkerActivity(
-    rank: 2,
-    name: 'Nimal Silva',
-    weightKg: 38.2,
-    valueRs: 382.0,
-    entryTime: '09:32 AM',
-  ),
-  _WorkerActivity(
-    rank: 3,
-    name: 'Sunil Fernando',
-    weightKg: 35.8,
-    valueRs: 358.0,
-    entryTime: '10:02 AM',
-  ),
-];
+String _monthPrefix() {
+  final now = DateTime.now();
+  return '${now.year}-${now.month.toString().padLeft(2, '0')}';
+}
+
+String _fmtKg(double kg) {
+  if (kg >= 1000) return '${(kg / 1000).toStringAsFixed(1)}t';
+  return '${kg.toStringAsFixed(1)} kg';
+}
+
+String _fmtAmount(double amount) {
+  if (amount >= 1000000) return 'Rs ${(amount / 1000000).toStringAsFixed(2)}M';
+  if (amount >= 1000) return 'Rs ${(amount / 1000).toStringAsFixed(1)}K';
+  return 'Rs ${amount.toStringAsFixed(0)}';
+}
+
+String _fmtEntryDate(String dateStr) {
+  final parts = dateStr.split('-');
+  if (parts.length != 3) return dateStr;
+  const months = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
+  final m = int.tryParse(parts[1]);
+  final d = int.tryParse(parts[2]);
+  if (m == null || m < 1 || m > 12 || d == null) return dateStr;
+  return '$d ${months[m - 1]}';
+}
 
 // ---------------------------------------------------------------------------
+// DirectorHomeTab
+// ---------------------------------------------------------------------------
 
-class DirectorHomeTab extends StatelessWidget {
+class DirectorHomeTab extends ConsumerWidget {
   final VoidCallback? onViewReports;
+  final VoidCallback? onViewWorkers;
 
-  const DirectorHomeTab({super.key, this.onViewReports});
+  const DirectorHomeTab({super.key, this.onViewReports, this.onViewWorkers});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final estate = ref.watch(estateNotifierProvider);
+
+    final workersAsync = estate != null
+        ? ref.watch(workersProvider(estate.estateId))
+        : null;
+
+    final allEntriesAsync = estate != null
+        ? ref.watch(teaEntriesProvider((estate.estateId, null)))
+        : null;
+
+    // Derived stats from tea entries
+    final today = _todayStr();
+    final monthPfx = _monthPrefix();
+
+    final allEntries = allEntriesAsync?.valueOrNull ?? [];
+    final todayEntries = allEntries.where((e) => e.date == today).toList();
+    final monthEntries = allEntries
+        .where((e) => e.date.startsWith(monthPfx))
+        .toList();
+
+    final todayKg = todayEntries.fold(0.0, (s, e) => s + e.kg);
+    final monthKg = monthEntries.fold(0.0, (s, e) => s + e.kg);
+    final monthEarnings = monthEntries.fold(0.0, (s, e) => s + e.totalAmount);
+
+    String entryVal(AsyncValue<List<TeaEntry>>? async, String computed) {
+      if (async == null) return '--';
+      return async.when(
+        data: (_) => computed,
+        loading: () => '…',
+        error: (_, __) => '--',
+      );
+    }
+
+    final totalWorkersVal = workersAsync == null
+        ? '--'
+        : workersAsync.when(
+            data: (l) => '${l.length}',
+            loading: () => '…',
+            error: (_, __) => '--',
+          );
+
     return SingleChildScrollView(
       child: Column(
-        //crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const _DashboardHeader(),
           Padding(
@@ -66,17 +117,31 @@ class DirectorHomeTab extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildStatsGrid(),
+                _buildStatsGrid(
+                  totalWorkers: totalWorkersVal,
+                  todayHarvest: entryVal(allEntriesAsync, _fmtKg(todayKg)),
+                  monthKg: entryVal(allEntriesAsync, _fmtKg(monthKg)),
+                  monthEarnings: entryVal(
+                    allEntriesAsync,
+                    _fmtAmount(monthEarnings),
+                  ),
+                ),
                 const SizedBox(height: 35),
                 const _SectionHeader(title: 'Quick Actions'),
                 _buildQuickActionsGrid(context),
                 const SizedBox(height: 35),
-                const _SectionHeader(
-                  title: "Today's Activity",
-                  showSeeAll: true,
+                _SectionHeader(
+                  title: "Today's Harvest",
+                  showSeeAll: onViewReports != null,
+                  onSeeAll: onViewReports,
                 ),
-                const SizedBox(height: 25),
-                const _TodayActivityCard(),
+                const SizedBox(height: 16),
+                _TodayHarvestCard(
+                  allEntriesAsync: allEntriesAsync,
+                  todayEntries: todayEntries,
+                  todayStr: today,
+                  onViewWorkers: onViewWorkers,
+                ),
                 const SizedBox(height: 12),
               ],
             ),
@@ -86,7 +151,12 @@ class DirectorHomeTab extends StatelessWidget {
     );
   }
 
-  Widget _buildStatsGrid() {
+  Widget _buildStatsGrid({
+    required String totalWorkers,
+    required String todayHarvest,
+    required String monthKg,
+    required String monthEarnings,
+  }) {
     return GridView.count(
       crossAxisCount: 2,
       crossAxisSpacing: 14,
@@ -94,35 +164,35 @@ class DirectorHomeTab extends StatelessWidget {
       childAspectRatio: 1.45,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      padding: EdgeInsets.only(top: 25),
-      children: const [
+      padding: const EdgeInsets.only(top: 25),
+      children: [
         _StatCard(
           icon: Icons.people_alt_rounded,
           label: 'Total Workers',
-          value: '248',
+          value: totalWorkers,
           iconColor: AppColors.primary,
           bgColor: AppColors.primaryFaint,
         ),
         _StatCard(
           icon: Icons.eco_rounded,
           label: "Today's Harvest",
-          value: '1,245 kg',
-          iconColor: Color(0xFF00897B),
-          bgColor: Color(0xFFE0F2F1),
+          value: todayHarvest,
+          iconColor: const Color(0xFF00897B),
+          bgColor: const Color(0xFFE0F2F1),
         ),
         _StatCard(
           icon: Icons.scale_rounded,
           label: 'Month Total KGs',
-          value: '28,400 kg',
-          iconColor: Color(0xFFE65100),
-          bgColor: Color(0xFFFFF3E0),
+          value: monthKg,
+          iconColor: const Color(0xFFE65100),
+          bgColor: const Color(0xFFFFF3E0),
         ),
         _StatCard(
           icon: Icons.currency_rupee_rounded,
           label: 'Monthly Earnings',
-          value: 'Rs 2.84M',
-          iconColor: Color(0xFFB7943A),
-          bgColor: Color(0xFFFFF8E1),
+          value: monthEarnings,
+          iconColor: const Color(0xFFB7943A),
+          bgColor: const Color(0xFFFFF8E1),
         ),
       ],
     );
@@ -136,13 +206,13 @@ class DirectorHomeTab extends StatelessWidget {
       childAspectRatio: 1.3,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      padding: EdgeInsets.only(top: 25),
+      padding: const EdgeInsets.only(top: 25),
       children: [
         _QuickActionCard(
-          icon: Icons.villa_rounded,
-          label: 'Manage\nEstates',
-          color: AppColors.primary,
-          onTap: () {},
+          icon: Icons.add_chart_rounded,
+          label: "Add Today's\nHarvest",
+          color: const Color(0xFF00897B),
+          onTap: () => context.push(AppRoutes.addTeaEntry),
         ),
         _QuickActionCard(
           icon: Icons.person_add_alt_1_rounded,
@@ -195,7 +265,6 @@ class _DashboardHeader extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
           child: Column(
             children: [
-              // Top row: brand + notification
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -208,7 +277,7 @@ class _DashboardHeader extends StatelessWidget {
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        'TeaState',
+                        'TeaEstate',
                         style: GoogleFonts.playfairDisplay(
                           color: Colors.white,
                           fontSize: 20,
@@ -249,7 +318,6 @@ class _DashboardHeader extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 14),
-              // Bottom row: greeting + avatar
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 crossAxisAlignment: CrossAxisAlignment.center,
@@ -309,8 +377,13 @@ class _DashboardHeader extends StatelessWidget {
 class _SectionHeader extends StatelessWidget {
   final String title;
   final bool showSeeAll;
+  final VoidCallback? onSeeAll;
 
-  const _SectionHeader({required this.title, this.showSeeAll = false});
+  const _SectionHeader({
+    required this.title,
+    this.showSeeAll = false,
+    this.onSeeAll,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -327,7 +400,7 @@ class _SectionHeader extends StatelessWidget {
         ),
         if (showSeeAll)
           GestureDetector(
-            onTap: () {},
+            onTap: onSeeAll,
             child: Text(
               'See All',
               style: GoogleFonts.dmSans(
@@ -391,7 +464,7 @@ class _StatCard extends StatelessWidget {
           Text(
             value,
             style: GoogleFonts.dmSans(
-              fontSize: 19,
+              fontSize: 17,
               fontWeight: FontWeight.w800,
               color: AppColors.textPrimary,
               letterSpacing: -0.3,
@@ -479,14 +552,216 @@ class _QuickActionCard extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Today's activity card
+// Today's harvest card
 // ---------------------------------------------------------------------------
 
-class _TodayActivityCard extends StatelessWidget {
-  const _TodayActivityCard();
+class _TodayHarvestCard extends StatelessWidget {
+  final AsyncValue<List<TeaEntry>>? allEntriesAsync;
+  final List<TeaEntry> todayEntries;
+  final String todayStr;
+  final VoidCallback? onViewWorkers;
+
+  const _TodayHarvestCard({
+    required this.allEntriesAsync,
+    required this.todayEntries,
+    required this.todayStr,
+    this.onViewWorkers,
+  });
 
   @override
   Widget build(BuildContext context) {
+    if (allEntriesAsync == null) {
+      return _card(_emptyState('No estate selected.'));
+    }
+
+    return allEntriesAsync!.when(
+      loading: () => _card(
+        const SizedBox(
+          height: 100,
+          child: Center(
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: AppColors.primary,
+            ),
+          ),
+        ),
+      ),
+      error: (_, __) => _card(_emptyState('Could not load harvest data.')),
+      data: (_) {
+        if (todayEntries.isEmpty) {
+          return _card(
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 32),
+              child: Column(
+                children: [
+                  Icon(
+                    Icons.eco_outlined,
+                    size: 40,
+                    color: AppColors.primary.withValues(alpha: 0.4),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'No harvest entries today',
+                    style: GoogleFonts.dmSans(
+                      fontSize: 13,
+                      color: AppColors.textHint,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _fmtEntryDate(todayStr) == todayStr
+                        ? todayStr
+                        : _fmtEntryDate(todayStr),
+                    style: GoogleFonts.dmSans(
+                      fontSize: 11,
+                      color: AppColors.textHint.withValues(alpha: 0.6),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        final totalKg = todayEntries.fold(0.0, (s, e) => s + e.kg);
+        final totalAmount = todayEntries.fold(0.0, (s, e) => s + e.totalAmount);
+
+        return _card(
+          Column(
+            children: [
+              // Table header
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                decoration: const BoxDecoration(
+                  color: AppColors.primaryFaint,
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(18),
+                    topRight: Radius.circular(18),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Worker',
+                        style: GoogleFonts.dmSans(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      'KG',
+                      style: GoogleFonts.dmSans(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    SizedBox(
+                      width: 70,
+                      child: Text(
+                        'Amount',
+                        textAlign: TextAlign.right,
+                        style: GoogleFonts.dmSans(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              ListView.separated(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                padding: const EdgeInsets.only(top: 4),
+                itemCount: todayEntries.length,
+                separatorBuilder: (_, __) => const Divider(
+                  height: 1,
+                  indent: 16,
+                  endIndent: 16,
+                  color: AppColors.divider,
+                ),
+                itemBuilder: (_, i) => _HarvestRow(
+                  entry: todayEntries[i],
+                  isLast: i == todayEntries.length - 1,
+                ),
+              ),
+              // Total row
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                decoration: const BoxDecoration(
+                  color: AppColors.primaryFaint,
+                  borderRadius: BorderRadius.only(
+                    bottomLeft: Radius.circular(18),
+                    bottomRight: Radius.circular(18),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        '${todayEntries.length} entries',
+                        style: GoogleFonts.dmSans(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.primaryMid,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      '${totalKg.toStringAsFixed(1)} kg',
+                      style: GoogleFonts.dmSans(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    SizedBox(
+                      width: 70,
+                      child: Text(
+                        _fmtAmount(totalAmount),
+                        textAlign: TextAlign.right,
+                        style: GoogleFonts.dmSans(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primaryMid,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          clipContent: true,
+        );
+      },
+    );
+  }
+
+  Widget _emptyState(String msg) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 32),
+    child: Center(
+      child: Text(
+        msg,
+        style: GoogleFonts.dmSans(fontSize: 13, color: AppColors.textHint),
+      ),
+    ),
+  );
+
+  Widget _card(Widget child, {bool clipContent = false}) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -499,147 +774,36 @@ class _TodayActivityCard extends StatelessWidget {
           ),
         ],
       ),
-      child: Column(
-        children: [
-          // Table header
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: AppColors.primaryFaint,
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(18),
-                topRight: Radius.circular(18),
-              ),
-            ),
-            child: Row(
-              children: [
-                SizedBox(
-                  width: 32,
-                  child: Text(
-                    '#',
-                    style: GoogleFonts.dmSans(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                ),
-                Expanded(
-                  child: Text(
-                    'Worker',
-                    style: GoogleFonts.dmSans(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                ),
-                Text(
-                  'Weight',
-                  style: GoogleFonts.dmSans(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.primary,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                SizedBox(
-                  width: 60,
-                  child: Text(
-                    'Value',
-                    textAlign: TextAlign.right,
-                    style: GoogleFonts.dmSans(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          // Worker rows
-          ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            padding: EdgeInsets.only(top: 20),
-            itemCount: _topWorkers.length,
-            separatorBuilder: (_, __) => const Divider(
-              height: 1,
-              indent: 16,
-              endIndent: 16,
-              color: AppColors.divider,
-            ),
-            itemBuilder: (context, index) {
-              return _WorkerRow(
-                activity: _topWorkers[index],
-                isFirst: index == 0,
-                isLast: index == _topWorkers.length - 1,
-              );
-            },
-          ),
-        ],
-      ),
+      child: clipContent
+          ? ClipRRect(borderRadius: BorderRadius.circular(18), child: child)
+          : child,
     );
   }
 }
 
 // ---------------------------------------------------------------------------
-// Worker row
+// Harvest row
 // ---------------------------------------------------------------------------
 
-class _WorkerRow extends StatelessWidget {
-  final _WorkerActivity activity;
+class _HarvestRow extends StatelessWidget {
+  final TeaEntry entry;
   final bool isLast;
-  final bool isFirst;
 
-  const _WorkerRow({
-    required this.activity,
-    required this.isLast,
-    this.isFirst = false,
-  });
-
-  static const _rankColors = [
-    Color(0xFFFFD700), // Gold
-    Color(0xFFAAAAAA), // Silver
-    Color(0xFFCD7F32), // Bronze
-  ];
+  const _HarvestRow({required this.entry, required this.isLast});
 
   @override
   Widget build(BuildContext context) {
-    final rankColor = _rankColors[activity.rank - 1];
-
     return Padding(
-      padding: EdgeInsets.fromLTRB(16, isFirst ? 0 : 12, 16, isLast ? 16 : 12),
+      padding: EdgeInsets.fromLTRB(16, 12, 16, isLast ? 16 : 12),
       child: Row(
         children: [
-          // Rank badge
-          Container(
-            width: 28,
-            height: 28,
-            decoration: BoxDecoration(
-              color: rankColor.withValues(alpha: 0.15),
-              shape: BoxShape.circle,
-            ),
-            child: Center(
-              child: Text(
-                '${activity.rank}',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  color: rankColor,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 10),
-          // Name + time
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  activity.name,
+                  entry.workerName,
+                  overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.dmSans(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
@@ -648,7 +812,7 @@ class _WorkerRow extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  activity.entryTime,
+                  'Rate: Rs ${entry.ratePerKg.toStringAsFixed(0)}/kg',
                   style: GoogleFonts.dmSans(
                     fontSize: 11,
                     color: AppColors.textHint,
@@ -657,9 +821,8 @@ class _WorkerRow extends StatelessWidget {
               ],
             ),
           ),
-          // Weight
           Text(
-            '${activity.weightKg} kg',
+            '${entry.kg.toStringAsFixed(1)} kg',
             style: GoogleFonts.dmSans(
               fontSize: 13,
               fontWeight: FontWeight.w700,
@@ -667,11 +830,10 @@ class _WorkerRow extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 16),
-          // Value
           SizedBox(
-            width: 60,
+            width: 70,
             child: Text(
-              'Rs ${activity.valueRs.toStringAsFixed(0)}',
+              'Rs ${entry.totalAmount.toStringAsFixed(0)}',
               textAlign: TextAlign.right,
               style: GoogleFonts.dmSans(
                 fontSize: 12,
