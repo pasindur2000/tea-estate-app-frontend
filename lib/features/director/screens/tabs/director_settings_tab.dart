@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/providers/auth_providers.dart';
 import '../../../../core/router/app_router.dart';
-import '../../../auth/services/auth_service.dart';
 
-class DirectorSettingsTab extends StatelessWidget {
+class DirectorSettingsTab extends ConsumerWidget {
   const DirectorSettingsTab({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -53,7 +54,9 @@ class DirectorSettingsTab extends StatelessWidget {
             label: 'Sign Out',
             isDestructive: true,
             onTap: () async {
-              await FirebaseAuthService().signOut();
+              await ref.read(authNotifierProvider.notifier).signOut();
+              ref.read(userProfileNotifierProvider.notifier).clear();
+              ref.read(selectedEstateProvider.notifier).state = null;
               if (context.mounted) context.go(AppRoutes.login);
             },
           ),
@@ -102,7 +105,8 @@ class _SettingsTile extends StatelessWidget {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         leading: Container(
           padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(color: iconBg, borderRadius: BorderRadius.circular(10)),
+          decoration:
+              BoxDecoration(color: iconBg, borderRadius: BorderRadius.circular(10)),
           child: Icon(icon, color: iconColor, size: 20),
         ),
         title: Text(

@@ -6,6 +6,7 @@ import '../../features/auth/screens/splash_screen.dart';
 import '../../features/director/screens/add_supervisor_screen.dart';
 import '../../features/director/screens/add_worker_screen.dart';
 import '../../features/director/screens/director_dashboard_screen.dart';
+import '../../features/director/screens/estate_selection_screen.dart';
 
 class AppRoutes {
   AppRoutes._();
@@ -14,8 +15,10 @@ class AppRoutes {
   static const String login = '/login';
   static const String signup = '/signup';
   static const String forgotPassword = '/forgot-password';
+  // Post-login flow
+  static const String estateSelection = '/estate-selection';
   // Role dashboards
-  static const String home = '/home'; // resolves to director for now
+  static const String home = '/home';
   static const String directorDashboard = '/director';
   static const String supervisorDashboard = '/supervisor'; // future
   // Director routes
@@ -53,6 +56,11 @@ class AppRouter {
         path: AppRoutes.forgotPassword,
         name: 'forgot-password',
         builder: (context, state) => const ForgotPasswordScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.estateSelection,
+        name: 'estate-selection',
+        builder: (context, state) => const EstateSelectionScreen(),
       ),
       GoRoute(
         path: AppRoutes.home,

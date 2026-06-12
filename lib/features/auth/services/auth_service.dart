@@ -33,7 +33,11 @@ class FirebaseAuthService implements AuthService {
 
   @override
   Future<({UserCredential credential, String? googleAccessToken})?> signInWithGoogle() async {
-    final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+    // signInSilently() avoids the Credential Manager bottom sheet on Android,
+    // which can fail with PHASE_CLIENT_ALREADY_HIDDEN when the activity is
+    // briefly hidden (e.g. during keyboard dismiss animation).
+    final GoogleSignInAccount? googleUser =
+        await _googleSignIn.signInSilently() ?? await _googleSignIn.signIn();
     if (googleUser == null) return null;
 
     final GoogleSignInAuthentication googleAuth =

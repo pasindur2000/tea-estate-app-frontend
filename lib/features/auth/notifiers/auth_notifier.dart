@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/auth_state.dart';
 import '../services/auth_service.dart';
@@ -48,6 +49,15 @@ class AuthNotifier extends StateNotifier<AuthState> {
     if (result == null) return false;
     final user = result.credential.user!;
     final token = await user.getIdToken() ?? '';
+
+    debugPrint('══════════════════════════════════════════');
+    debugPrint('[Auth] Firebase ID Token (${token.length} chars):');
+    const chunkSize = 900;
+    for (int i = 0; i < token.length; i += chunkSize) {
+      debugPrint(token.substring(i, (i + chunkSize).clamp(0, token.length)));
+    }
+    debugPrint('══════════════════════════════════════════');
+
     await _storage.saveToken(token);
     state = AuthAuthenticated(user: user, token: token);
     return true;

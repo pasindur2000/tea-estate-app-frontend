@@ -71,7 +71,14 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     if (!mounted) return;
     final authState = ref.read(authNotifierProvider);
     if (authState is AuthAuthenticated) {
-      context.go(AppRoutes.home);
+      try {
+        await ref
+            .read(userProfileNotifierProvider.notifier)
+            .loadProfile(authState.token);
+      } catch (_) {
+        // Profile load failure is non-fatal — estate selection handles errors
+      }
+      if (mounted) context.go(AppRoutes.estateSelection);
     } else {
       context.go(AppRoutes.login);
     }

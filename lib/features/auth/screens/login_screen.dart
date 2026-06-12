@@ -49,7 +49,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             _emailController.text,
             _passwordController.text,
           );
-      if (mounted) context.go(AppRoutes.home);
+      final token = ref.read(authTokenProvider);
+      if (token != null) {
+        try {
+          await ref
+              .read(userProfileNotifierProvider.notifier)
+              .loadProfile(token);
+        } catch (_) {
+          // Profile fetch failing (e.g. backend unreachable) must not block
+          // the user from navigating — it can be retried on the next screen.
+        }
+      }
+      if (mounted) context.go(AppRoutes.estateSelection);
     } on FirebaseAuthException catch (e) {
       _showError(authErrorMessage(e.code));
     } catch (_) {
@@ -65,7 +76,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     try {
       final success =
           await ref.read(authNotifierProvider.notifier).signInWithGoogle();
-      if (success && mounted) context.go(AppRoutes.home);
+      if (!success || !mounted) return;
+      final token = ref.read(authTokenProvider);
+      if (token != null) {
+        try {
+          await ref
+              .read(userProfileNotifierProvider.notifier)
+              .loadProfile(token);
+        } catch (_) {
+          // Profile fetch failing (e.g. backend unreachable) must not block
+          // the user from navigating — it can be retried on the next screen.
+        }
+      }
+      if (mounted) context.go(AppRoutes.estateSelection);
     } on FirebaseAuthException catch (e) {
       _showError(authErrorMessage(e.code));
     } catch (_) {
