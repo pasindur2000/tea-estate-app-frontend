@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/estate.dart';
 import '../models/user_profile.dart';
+import '../notifiers/estate_notifier.dart';
 import '../services/api_service.dart';
 import '../services/secure_storage_service.dart';
 import '../../features/auth/models/auth_state.dart';
@@ -30,7 +31,9 @@ final userProfileNotifierProvider =
   (ref) => UserProfileNotifier(ref.read(apiServiceProvider)),
 );
 
-final selectedEstateProvider = StateProvider<Estate?>((ref) => null);
+final estateNotifierProvider = StateNotifierProvider<EstateNotifier, Estate?>(
+  (ref) => EstateNotifier(ref.read(secureStorageProvider)),
+);
 
 /// Convenience: read the current Firebase ID token. Null when unauthenticated.
 final authTokenProvider = Provider<String?>((ref) {

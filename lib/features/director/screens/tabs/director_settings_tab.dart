@@ -48,6 +48,14 @@ class DirectorSettingsTab extends ConsumerWidget {
             label: 'Help & Support',
             onTap: () {},
           ),
+          _SettingsTile(
+            icon: Icons.swap_horiz_rounded,
+            label: 'Switch Estate',
+            onTap: () async {
+              await ref.read(estateNotifierProvider.notifier).clearEstate();
+              if (context.mounted) context.go(AppRoutes.estateSelection);
+            },
+          ),
           const SizedBox(height: 12),
           _SettingsTile(
             icon: Icons.logout_rounded,
@@ -56,7 +64,7 @@ class DirectorSettingsTab extends ConsumerWidget {
             onTap: () async {
               await ref.read(authNotifierProvider.notifier).signOut();
               ref.read(userProfileNotifierProvider.notifier).clear();
-              ref.read(selectedEstateProvider.notifier).state = null;
+              await ref.read(estateNotifierProvider.notifier).clearEstate();
               if (context.mounted) context.go(AppRoutes.login);
             },
           ),

@@ -73,4 +73,21 @@ class ApiService {
     });
     return Estate.fromJson(json['data'] as Map<String, dynamic>);
   }
+
+  Future<UserProfile> createSupervisor(
+    String token, {
+    required String name,
+    required String email,
+    required String password,
+    required String estateId,
+  }) async {
+    final json = await _post('/users/', token, {
+      'name': name,
+      'email': email,
+      'password': password,
+      'estateId': estateId,
+      'role': 'supervisor',
+    });
+    return UserProfile.fromJson(json['data'] as Map<String, dynamic>);
+  }
 }

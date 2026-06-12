@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -57,9 +56,9 @@ class _EstateSelectionScreenState extends ConsumerState<EstateSelectionScreen> {
     }
   }
 
-  void _selectEstate(Estate estate) {
-    ref.read(selectedEstateProvider.notifier).state = estate;
-    context.go(AppRoutes.home);
+  Future<void> _selectEstate(Estate estate) async {
+    await ref.read(estateNotifierProvider.notifier).selectEstate(estate);
+    if (mounted) context.go(AppRoutes.home);
   }
 
   void _showAddEstateSheet() {

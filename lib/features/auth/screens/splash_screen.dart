@@ -63,12 +63,14 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   }
 
   Future<void> _navigate() async {
-    // Wait for both the minimum splash duration AND auth initialization to finish
+    // Wait for splash duration, auth init, and estate init to all finish
     await Future.wait([
       Future.delayed(const Duration(milliseconds: 2800)),
       ref.read(authNotifierProvider.notifier).initFuture,
+      ref.read(estateNotifierProvider.notifier).initFuture,
     ]);
     if (!mounted) return;
+
     final authState = ref.read(authNotifierProvider);
     if (authState is AuthAuthenticated) {
       try {
@@ -76,9 +78,12 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
             .read(userProfileNotifierProvider.notifier)
             .loadProfile(authState.token);
       } catch (_) {
-        // Profile load failure is non-fatal — estate selection handles errors
+        // Profile load failure is non-fatal
       }
-      if (mounted) context.go(AppRoutes.estateSelection);
+      if (!mounted) return;
+      final estate = ref.read(estateNotifierProvider);
+      // Skip estate selection if the user already has one stored
+      context.go(estate != null ? AppRoutes.home : AppRoutes.estateSelection);
     } else {
       context.go(AppRoutes.login);
     }

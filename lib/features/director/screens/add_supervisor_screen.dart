@@ -1,36 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/models/estate.dart';
+import '../../../core/providers/auth_providers.dart';
+import '../../../core/router/app_router.dart';
+import '../../../core/services/api_service.dart';
 import '../../auth/widgets/tea_primary_button.dart';
 import '../../auth/widgets/tea_text_field.dart';
 
-// ---------------------------------------------------------------------------
-// Estate model — replace list with API call when backend is ready
-// ---------------------------------------------------------------------------
-class _Estate {
-  final String id;
-  final String name;
-  const _Estate({required this.id, required this.name});
-}
-
-const _estates = [
-  _Estate(id: 'estate_001', name: 'Nuwara Eliya Estate'),
-  _Estate(id: 'estate_002', name: 'Kandy Valley Estate'),
-  _Estate(id: 'estate_003', name: 'Dimbula Estate'),
-  _Estate(id: 'estate_004', name: 'Uva Highland Estate'),
-];
-
-// ---------------------------------------------------------------------------
-
-class AddSupervisorScreen extends StatefulWidget {
+class AddSupervisorScreen extends ConsumerStatefulWidget {
   const AddSupervisorScreen({super.key});
 
   @override
-  State<AddSupervisorScreen> createState() => _AddSupervisorScreenState();
+  ConsumerState<AddSupervisorScreen> createState() =>
+      _AddSupervisorScreenState();
 }
 
-class _AddSupervisorScreenState extends State<AddSupervisorScreen> {
+class _AddSupervisorScreenState extends ConsumerState<AddSupervisorScreen> {
   final _formKey = GlobalKey<FormState>();
 
   final _nameController = TextEditingController();
@@ -44,6 +32,27 @@ class _AddSupervisorScreenState extends State<AddSupervisorScreen> {
   String? _selectedEstateId;
   bool _obscurePassword = true;
   bool _isSubmitting = false;
+  List<Estate> _estates = [];
+  bool _loadingEstates = true;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Director-only guard — redirect non-directors immediately
+      final profile = ref.read(userProfileNotifierProvider);
+      if (profile != null && !profile.isDirector) {
+        context.go(AppRoutes.home);
+        return;
+      }
+      // Pre-select the estate the director is currently working in
+      final selected = ref.read(estateNotifierProvider);
+      if (selected != null) {
+        setState(() => _selectedEstateId = selected.estateId);
+      }
+      _loadEstates();
+    });
+  }
 
   @override
   void dispose() {
@@ -56,15 +65,40 @@ class _AddSupervisorScreenState extends State<AddSupervisorScreen> {
     super.dispose();
   }
 
+  Future<void> _loadEstates() async {
+    setState(() => _loadingEstates = true);
+    try {
+      final token = ref.read(authTokenProvider)!;
+      final estates = await ref.read(apiServiceProvider).listEstates(token);
+      if (!mounted) return;
+      setState(() {
+        _estates = estates;
+        _loadingEstates = false;
+        // Keep pre-selected estate only if it's still in the list
+        if (_selectedEstateId != null &&
+            !_estates.any((e) => e.estateId == _selectedEstateId)) {
+          _selectedEstateId = null;
+        }
+      });
+    } catch (_) {
+      if (mounted) setState(() => _loadingEstates = false);
+    }
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     FocusScope.of(context).unfocus();
 
     setState(() => _isSubmitting = true);
     try {
-      // TODO: replace stub with real API call
-      // POST /api/supervisors  { name, email, password, estateId, role: 'supervisor' }
-      await Future.delayed(const Duration(milliseconds: 1200));
+      final token = ref.read(authTokenProvider)!;
+      await ref.read(apiServiceProvider).createSupervisor(
+            token,
+            name: _nameController.text.trim(),
+            email: _emailController.text.trim(),
+            password: _passwordController.text,
+            estateId: _selectedEstateId!,
+          );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -87,6 +121,8 @@ class _AddSupervisorScreenState extends State<AddSupervisorScreen> {
         );
         context.pop();
       }
+    } on ApiException catch (e) {
+      _showError(e.message);
     } catch (_) {
       _showError('Failed to create supervisor. Please try again.');
     } finally {
@@ -124,9 +160,8 @@ class _AddSupervisorScreenState extends State<AddSupervisorScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _InfoCard(),
+              const _InfoCard(),
               const SizedBox(height: 24),
-              // ── Section label ──────────────────────────
               _sectionLabel('Account Details'),
               const SizedBox(height: 14),
               TeaTextField(
@@ -163,9 +198,7 @@ class _AddSupervisorScreenState extends State<AddSupervisorScreen> {
                 onFieldSubmitted: (_) =>
                     FocusScope.of(context).requestFocus(_passwordFocus),
                 validator: (v) {
-                  if (v == null || v.trim().isEmpty) {
-                    return 'Email is required';
-                  }
+                  if (v == null || v.trim().isEmpty) return 'Email is required';
                   if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
                       .hasMatch(v.trim())) {
                     return 'Enter a valid email address';
@@ -202,11 +235,12 @@ class _AddSupervisorScreenState extends State<AddSupervisorScreen> {
                 },
               ),
               const SizedBox(height: 28),
-              // ── Section label ──────────────────────────
               _sectionLabel('Assignment'),
               const SizedBox(height: 14),
               _EstateDropdownField(
                 value: _selectedEstateId,
+                estates: _estates,
+                isLoading: _loadingEstates,
                 onChanged: (v) => setState(() => _selectedEstateId = v),
                 validator: (v) =>
                     (v == null || v.isEmpty) ? 'Please select an estate' : null,
@@ -269,6 +303,8 @@ class _AddSupervisorScreenState extends State<AddSupervisorScreen> {
 // ---------------------------------------------------------------------------
 
 class _InfoCard extends StatelessWidget {
+  const _InfoCard();
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -304,16 +340,20 @@ class _InfoCard extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Estate dropdown — styled to match TeaTextField
+// Estate dropdown — loads real estates from the API
 // ---------------------------------------------------------------------------
 
 class _EstateDropdownField extends StatelessWidget {
   final String? value;
+  final List<Estate> estates;
+  final bool isLoading;
   final ValueChanged<String?> onChanged;
   final FormFieldValidator<String>? validator;
 
   const _EstateDropdownField({
     required this.value,
+    required this.estates,
+    required this.isLoading,
     required this.onChanged,
     this.validator,
   });
@@ -333,33 +373,53 @@ class _EstateDropdownField extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 8),
-        DropdownButtonFormField<String>(
-          initialValue: value,
-          onChanged: onChanged,
-          validator: validator,
-          isExpanded: true,
-          icon: const Icon(Icons.keyboard_arrow_down_rounded,
-              color: AppColors.textHint),
-          dropdownColor: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          style: GoogleFonts.dmSans(
-            fontSize: 15,
-            fontWeight: FontWeight.w500,
-            color: AppColors.textPrimary,
-          ),
-          decoration: const InputDecoration(
-            prefixIcon: Icon(Icons.villa_rounded, size: 20),
-            hintText: 'Select an estate',
-          ),
-          items: _estates
-              .map(
-                (e) => DropdownMenuItem<String>(
-                  value: e.id,
-                  child: Text(e.name),
+        if (isLoading)
+          Container(
+            height: 56,
+            decoration: BoxDecoration(
+              color: AppColors.inputFill,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: const Center(
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: AppColors.primary,
                 ),
-              )
-              .toList(),
-        ),
+              ),
+            ),
+          )
+        else
+          DropdownButtonFormField<String>(
+            initialValue: value,
+            onChanged: onChanged,
+            validator: validator,
+            isExpanded: true,
+            icon: const Icon(Icons.keyboard_arrow_down_rounded,
+                color: AppColors.textHint),
+            dropdownColor: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            style: GoogleFonts.dmSans(
+              fontSize: 15,
+              fontWeight: FontWeight.w500,
+              color: AppColors.textPrimary,
+            ),
+            decoration: const InputDecoration(
+              prefixIcon: Icon(Icons.villa_rounded, size: 20),
+              hintText: 'Select an estate',
+            ),
+            items: estates
+                .map(
+                  (e) => DropdownMenuItem<String>(
+                    value: e.estateId,
+                    child: Text(e.name),
+                  ),
+                )
+                .toList(),
+          ),
       ],
     );
   }
