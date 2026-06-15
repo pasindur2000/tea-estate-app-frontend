@@ -58,7 +58,13 @@ class _EstateSelectionScreenState extends ConsumerState<EstateSelectionScreen> {
 
   Future<void> _selectEstate(Estate estate) async {
     await ref.read(estateNotifierProvider.notifier).selectEstate(estate);
-    if (mounted) context.go(AppRoutes.home);
+    if (!mounted) return;
+    final profile = ref.read(userProfileNotifierProvider);
+    context.go(
+      profile?.isSupervisor == true
+          ? AppRoutes.supervisorDashboard
+          : AppRoutes.home,
+    );
   }
 
   void _showAddEstateSheet() {

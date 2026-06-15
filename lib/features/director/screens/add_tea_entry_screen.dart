@@ -47,7 +47,7 @@ class _AddTeaEntryScreenState extends ConsumerState<AddTeaEntryScreen> {
     _rateController.addListener(() => setState(() {}));
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final profile = ref.read(userProfileNotifierProvider);
-      if (profile != null && !profile.isDirector) {
+      if (profile != null && !profile.isDirector && !profile.isSupervisor) {
         context.go(AppRoutes.home);
         return;
       }

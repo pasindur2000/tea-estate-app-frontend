@@ -87,6 +87,12 @@ class DirectorHomeTab extends ConsumerWidget {
         .where((e) => e.date.startsWith(monthPfx))
         .toList();
 
+    // Top 5 by kg for display only — totals still use the full list
+    final topTodayEntries = (List<TeaEntry>.from(todayEntries)
+          ..sort((a, b) => b.kg.compareTo(a.kg)))
+        .take(5)
+        .toList();
+
     final todayKg = todayEntries.fold(0.0, (s, e) => s + e.kg);
     final monthKg = monthEntries.fold(0.0, (s, e) => s + e.kg);
     final monthEarnings = monthEntries.fold(0.0, (s, e) => s + e.totalAmount);
@@ -138,7 +144,8 @@ class DirectorHomeTab extends ConsumerWidget {
                 const SizedBox(height: 16),
                 _TodayHarvestCard(
                   allEntriesAsync: allEntriesAsync,
-                  todayEntries: todayEntries,
+                  todayEntries: topTodayEntries,
+                  totalTodayEntries: todayEntries.length,
                   todayStr: today,
                   onViewWorkers: onViewWorkers,
                 ),
@@ -343,21 +350,24 @@ class _DashboardHeader extends StatelessWidget {
                       ),
                     ],
                   ),
-                  Container(
-                    width: 50,
-                    height: 50,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.15),
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.3),
-                        width: 1.5,
+                  GestureDetector(
+                    onTap: () => context.push(AppRoutes.profile),
+                    child: Container(
+                      width: 50,
+                      height: 50,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.15),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.3),
+                          width: 1.5,
+                        ),
                       ),
-                    ),
-                    child: const Icon(
-                      Icons.person_rounded,
-                      color: Colors.white,
-                      size: 28,
+                      child: const Icon(
+                        Icons.person_rounded,
+                        color: Colors.white,
+                        size: 28,
+                      ),
                     ),
                   ),
                 ],
@@ -558,12 +568,14 @@ class _QuickActionCard extends StatelessWidget {
 class _TodayHarvestCard extends StatelessWidget {
   final AsyncValue<List<TeaEntry>>? allEntriesAsync;
   final List<TeaEntry> todayEntries;
+  final int totalTodayEntries;
   final String todayStr;
   final VoidCallback? onViewWorkers;
 
   const _TodayHarvestCard({
     required this.allEntriesAsync,
     required this.todayEntries,
+    required this.totalTodayEntries,
     required this.todayStr,
     this.onViewWorkers,
   });
@@ -711,7 +723,9 @@ class _TodayHarvestCard extends StatelessWidget {
                   children: [
                     Expanded(
                       child: Text(
-                        '${todayEntries.length} entries',
+                        totalTodayEntries > 5
+                            ? 'Top 5 of $totalTodayEntries entries'
+                            : '$totalTodayEntries ${totalTodayEntries == 1 ? 'entry' : 'entries'}',
                         style: GoogleFonts.dmSans(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,

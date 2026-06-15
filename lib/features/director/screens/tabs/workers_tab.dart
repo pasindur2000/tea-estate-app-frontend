@@ -1,10 +1,8 @@
 import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
-
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/models/worker.dart';
 import '../../../../core/providers/auth_providers.dart';
@@ -18,8 +16,18 @@ String _fmtJoinedDate(String dateStr) {
   final parts = dateStr.split('-');
   if (parts.length != 3) return dateStr;
   const months = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
   final m = int.tryParse(parts[1]);
   final d = int.tryParse(parts[2]);
@@ -59,11 +67,11 @@ class WorkersTab extends ConsumerWidget {
         loading: () => const Center(
           child: CircularProgressIndicator(color: AppColors.primary),
         ),
-        error: (e, _) => _ErrorState(onRetry: () => ref.invalidate(workersProvider(estate.estateId))),
-        data: (workers) => _WorkersList(
-          workers: workers,
-          estateId: estate.estateId,
+        error: (e, _) => _ErrorState(
+          onRetry: () => ref.invalidate(workersProvider(estate.estateId)),
         ),
+        data: (workers) =>
+            _WorkersList(workers: workers, estateId: estate.estateId),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () async {
@@ -72,8 +80,11 @@ class WorkersTab extends ConsumerWidget {
         },
         backgroundColor: AppColors.primary,
         elevation: 3,
-        icon: const Icon(Icons.person_add_alt_1_rounded,
-            color: Colors.white, size: 20),
+        icon: const Icon(
+          Icons.person_add_alt_1_rounded,
+          color: Colors.white,
+          size: 20,
+        ),
         label: Text(
           'Add Worker',
           style: GoogleFonts.dmSans(
@@ -101,10 +112,7 @@ class WorkersTab extends ConsumerWidget {
       ),
       bottom: PreferredSize(
         preferredSize: const Size.fromHeight(1),
-        child: Container(
-          height: 1,
-          color: Colors.white.withValues(alpha: 0.1),
-        ),
+        child: Container(height: 1, color: Colors.white.withValues(alpha: 0.1)),
       ),
     );
   }
@@ -348,8 +356,11 @@ class _WorkerCard extends StatelessWidget {
                       const SizedBox(height: 4),
                       Row(
                         children: [
-                          const Icon(Icons.calendar_month_outlined,
-                              size: 11, color: AppColors.textHint),
+                          const Icon(
+                            Icons.calendar_month_outlined,
+                            size: 11,
+                            color: AppColors.textHint,
+                          ),
                           const SizedBox(width: 3),
                           Text(
                             'Joined ${_fmtJoinedDate(worker.joinedDate)}',
@@ -370,8 +381,11 @@ class _WorkerCard extends StatelessWidget {
                   children: [
                     _StatusChip(isActive: isActive),
                     const SizedBox(height: 6),
-                    const Icon(Icons.chevron_right_rounded,
-                        color: AppColors.textHint, size: 18),
+                    const Icon(
+                      Icons.chevron_right_rounded,
+                      color: AppColors.textHint,
+                      size: 18,
+                    ),
                   ],
                 ),
               ],
@@ -580,8 +594,11 @@ class _EmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.people_outline_rounded,
-                size: 64, color: AppColors.primaryLight),
+            const Icon(
+              Icons.people_outline_rounded,
+              size: 64,
+              color: AppColors.primaryLight,
+            ),
             const SizedBox(height: 20),
             Text(
               'No workers yet',
@@ -595,7 +612,9 @@ class _EmptyState extends StatelessWidget {
             Text(
               'Tap "Add Worker" to register the first worker.',
               style: GoogleFonts.dmSans(
-                  color: AppColors.textSecondary, fontSize: 14),
+                color: AppColors.textSecondary,
+                fontSize: 14,
+              ),
               textAlign: TextAlign.center,
             ),
           ],
@@ -617,28 +636,38 @@ class _ErrorState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.wifi_off_rounded,
-                size: 52, color: AppColors.textHint),
+            const Icon(
+              Icons.wifi_off_rounded,
+              size: 52,
+              color: AppColors.textHint,
+            ),
             const SizedBox(height: 16),
             Text(
               'Failed to load workers. Please check your connection.',
               style: GoogleFonts.dmSans(
-                  color: AppColors.textSecondary, fontSize: 14),
+                color: AppColors.textSecondary,
+                fontSize: 14,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
               onPressed: onRetry,
               icon: const Icon(Icons.refresh_rounded),
-              label: Text('Retry',
-                  style: GoogleFonts.dmSans(fontWeight: FontWeight.w600)),
+              label: Text(
+                'Retry',
+                style: GoogleFonts.dmSans(fontWeight: FontWeight.w600),
+              ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 foregroundColor: Colors.white,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 28,
+                  vertical: 12,
+                ),
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             ),
           ],
@@ -666,7 +695,9 @@ class _GaugePainter extends CustomPainter {
 
     canvas.drawArc(
       Rect.fromCircle(center: center, radius: radius),
-      math.pi, math.pi, false,
+      math.pi,
+      math.pi,
+      false,
       Paint()
         ..color = Colors.grey.shade200
         ..style = PaintingStyle.stroke
@@ -676,7 +707,9 @@ class _GaugePainter extends CustomPainter {
     if (progress > 0.01) {
       canvas.drawArc(
         Rect.fromCircle(center: center, radius: radius),
-        math.pi, math.pi * progress, false,
+        math.pi,
+        math.pi * progress,
+        false,
         Paint()
           ..color = progressColor
           ..style = PaintingStyle.stroke

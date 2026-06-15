@@ -55,12 +55,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           await ref
               .read(userProfileNotifierProvider.notifier)
               .loadProfile(token);
-        } catch (_) {
-          // Profile fetch failing (e.g. backend unreachable) must not block
-          // the user from navigating — it can be retried on the next screen.
-        }
+        } catch (_) {}
       }
-      if (mounted) context.go(AppRoutes.estateSelection);
+      if (!mounted) return;
+      await _navigateAfterLogin();
     } on FirebaseAuthException catch (e) {
       _showError(authErrorMessage(e.code));
     } catch (_) {
@@ -83,12 +81,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           await ref
               .read(userProfileNotifierProvider.notifier)
               .loadProfile(token);
-        } catch (_) {
-          // Profile fetch failing (e.g. backend unreachable) must not block
-          // the user from navigating — it can be retried on the next screen.
-        }
+        } catch (_) {}
       }
-      if (mounted) context.go(AppRoutes.estateSelection);
+      if (!mounted) return;
+      await _navigateAfterLogin();
     } on FirebaseAuthException catch (e) {
       _showError(authErrorMessage(e.code));
     } catch (_) {
@@ -127,6 +123,26 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   //   debugPrint('══════════════════════════════════════════');
   // }
+
+  Future<void> _navigateAfterLogin() async {
+    final profile = ref.read(userProfileNotifierProvider);
+    if (profile?.isSupervisor == true) {
+      // Auto-fetch and store the supervisor's assigned estate so they never
+      // see the estate selection screen (which requires director permissions).
+      final token = ref.read(authTokenProvider);
+      if (token != null && profile!.estateId != null) {
+        try {
+          final estate = await ref
+              .read(apiServiceProvider)
+              .getEstate(token, profile.estateId!);
+          await ref.read(estateNotifierProvider.notifier).selectEstate(estate);
+        } catch (_) {}
+      }
+      if (mounted) context.go(AppRoutes.supervisorDashboard);
+    } else {
+      if (mounted) context.go(AppRoutes.estateSelection);
+    }
+  }
 
   void _showError(String message) {
     if (!mounted) return;

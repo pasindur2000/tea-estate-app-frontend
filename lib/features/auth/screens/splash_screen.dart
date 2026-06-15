@@ -76,13 +76,32 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         await ref
             .read(userProfileNotifierProvider.notifier)
             .loadProfile(authState.token);
-      } catch (_) {
-        // Profile load failure is non-fatal
-      }
+      } catch (_) {}
       if (!mounted) return;
-      final estate = ref.read(estateNotifierProvider);
-      // Skip estate selection if the user already has one stored
-      context.go(estate != null ? AppRoutes.home : AppRoutes.estateSelection);
+
+      final profile = ref.read(userProfileNotifierProvider);
+
+      if (profile?.isSupervisor == true) {
+        // Supervisors skip estate selection — their estate comes from the profile.
+        final estate = ref.read(estateNotifierProvider);
+        if (estate == null && profile!.estateId != null) {
+          try {
+            final fetchedEstate = await ref
+                .read(apiServiceProvider)
+                .getEstate(authState.token, profile.estateId!);
+            await ref
+                .read(estateNotifierProvider.notifier)
+                .selectEstate(fetchedEstate);
+          } catch (_) {}
+        }
+        if (!mounted) return;
+        context.go(AppRoutes.supervisorDashboard);
+      } else {
+        final estate = ref.read(estateNotifierProvider);
+        context.go(
+          estate != null ? AppRoutes.home : AppRoutes.estateSelection,
+        );
+      }
     } else {
       context.go(AppRoutes.login);
     }

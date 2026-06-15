@@ -39,9 +39,8 @@ class _AddWorkerScreenState extends ConsumerState<AddWorkerScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // Director-only guard
       final profile = ref.read(userProfileNotifierProvider);
-      if (profile != null && !profile.isDirector) {
+      if (profile != null && !profile.isDirector && !profile.isSupervisor) {
         context.go(AppRoutes.home);
         return;
       }

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../models/estate.dart';
 import '../models/tea_entry.dart';
@@ -64,6 +65,11 @@ class ApiService {
         .toList();
   }
 
+  Future<Estate> getEstate(String token, String estateId) async {
+    final json = await _get('/estates/$estateId', token);
+    return Estate.fromJson(json['data'] as Map<String, dynamic>);
+  }
+
   Future<Estate> createEstate(
     String token, {
     required String name,
@@ -119,7 +125,12 @@ class ApiService {
         ? '/tea-entries/estate/$estateId?date=$date'
         : '/tea-entries/estate/$estateId';
     final json = await _get(path, token);
-    return (json['data'] as List)
+    final list = json['data'] as List? ?? [];
+    if (list.isNotEmpty) {
+      debugPrint('[TeaEntry] raw first item keys: ${(list.first as Map).keys.toList()}');
+      debugPrint('[TeaEntry] raw first item: ${list.first}');
+    }
+    return list
         .map((e) => TeaEntry.fromJson(e as Map<String, dynamic>))
         .toList();
   }
