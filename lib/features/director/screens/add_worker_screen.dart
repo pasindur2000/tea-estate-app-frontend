@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/constants/app_colors.dart';
-import '../../../core/models/estate.dart';
 import '../../../core/providers/auth_providers.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/services/api_service.dart';
@@ -29,11 +28,8 @@ class _AddWorkerScreenState extends ConsumerState<AddWorkerScreen> {
   final _nicFocus = FocusNode();
   final _phoneFocus = FocusNode();
 
-  String? _selectedEstateId;
   DateTime? _joinedDate;
   bool _isSubmitting = false;
-  List<Estate> _estates = [];
-  bool _loadingEstates = true;
 
   @override
   void initState() {
@@ -42,14 +38,7 @@ class _AddWorkerScreenState extends ConsumerState<AddWorkerScreen> {
       final profile = ref.read(userProfileNotifierProvider);
       if (profile != null && !profile.isDirector && !profile.isSupervisor) {
         context.go(AppRoutes.home);
-        return;
       }
-      // Pre-select the current estate
-      final selected = ref.read(estateNotifierProvider);
-      if (selected != null) {
-        setState(() => _selectedEstateId = selected.estateId);
-      }
-      _loadEstates();
     });
   }
 
@@ -62,25 +51,6 @@ class _AddWorkerScreenState extends ConsumerState<AddWorkerScreen> {
     _nicFocus.dispose();
     _phoneFocus.dispose();
     super.dispose();
-  }
-
-  Future<void> _loadEstates() async {
-    setState(() => _loadingEstates = true);
-    try {
-      final token = ref.read(authTokenProvider)!;
-      final estates = await ref.read(apiServiceProvider).listEstates(token);
-      if (!mounted) return;
-      setState(() {
-        _estates = estates;
-        _loadingEstates = false;
-        if (_selectedEstateId != null &&
-            !_estates.any((e) => e.estateId == _selectedEstateId)) {
-          _selectedEstateId = null;
-        }
-      });
-    } catch (_) {
-      if (mounted) setState(() => _loadingEstates = false);
-    }
   }
 
   Future<void> _pickJoinedDate() async {
@@ -111,6 +81,12 @@ class _AddWorkerScreenState extends ConsumerState<AddWorkerScreen> {
     if (!_formKey.currentState!.validate()) return;
     FocusScope.of(context).unfocus();
 
+    final estate = ref.read(estateNotifierProvider);
+    if (estate == null) {
+      _showError('No estate selected. Please go back and select an estate.');
+      return;
+    }
+
     setState(() => _isSubmitting = true);
     try {
       final token = ref.read(authTokenProvider)!;
@@ -119,7 +95,7 @@ class _AddWorkerScreenState extends ConsumerState<AddWorkerScreen> {
             name: _nameController.text.trim(),
             nic: _nicController.text.trim(),
             phone: _phoneController.text.trim(),
-            estateId: _selectedEstateId!,
+            estateId: estate.estateId,
             joinedDate: _formatDateForApi(_joinedDate!),
           );
 
@@ -262,8 +238,6 @@ class _AddWorkerScreenState extends ConsumerState<AddWorkerScreen> {
               const SizedBox(height: 28),
               _sectionLabel('Assignment'),
               const SizedBox(height: 14),
-
-              // Joined date picker
               FormField<DateTime?>(
                 key: _joinedDateFieldKey,
                 autovalidateMode: AutovalidateMode.onUserInteraction,
@@ -347,17 +321,6 @@ class _AddWorkerScreenState extends ConsumerState<AddWorkerScreen> {
                   );
                 },
               ),
-              const SizedBox(height: 18),
-
-              // Estate dropdown — loads from API, pre-selects current estate
-              _EstateDropdownField(
-                value: _selectedEstateId,
-                estates: _estates,
-                isLoading: _loadingEstates,
-                onChanged: (v) => setState(() => _selectedEstateId = v),
-                validator: (v) =>
-                    (v == null || v.isEmpty) ? 'Please select an estate' : null,
-              ),
               const SizedBox(height: 36),
               TeaPrimaryButton(
                 label: 'Add Worker',
@@ -410,7 +373,6 @@ class _AddWorkerScreenState extends ConsumerState<AddWorkerScreen> {
     );
   }
 
-  // Human-readable display format
   static String _fmtDisplay(DateTime d) {
     const months = [
       'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
@@ -456,92 +418,6 @@ class _InfoCard extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Estate dropdown — loads real estates from the API
-// ---------------------------------------------------------------------------
-
-class _EstateDropdownField extends StatelessWidget {
-  final String? value;
-  final List<Estate> estates;
-  final bool isLoading;
-  final ValueChanged<String?> onChanged;
-  final FormFieldValidator<String>? validator;
-
-  const _EstateDropdownField({
-    required this.value,
-    required this.estates,
-    required this.isLoading,
-    required this.onChanged,
-    this.validator,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Estate',
-          style: GoogleFonts.dmSans(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textSecondary,
-            letterSpacing: 0.2,
-          ),
-        ),
-        const SizedBox(height: 8),
-        if (isLoading)
-          Container(
-            height: 56,
-            decoration: BoxDecoration(
-              color: AppColors.inputFill,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: const Center(
-              child: SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: AppColors.primary,
-                ),
-              ),
-            ),
-          )
-        else
-          DropdownButtonFormField<String>(
-            initialValue: value,
-            onChanged: onChanged,
-            validator: validator,
-            isExpanded: true,
-            icon: const Icon(Icons.keyboard_arrow_down_rounded,
-                color: AppColors.textHint),
-            dropdownColor: Colors.white,
-            borderRadius: BorderRadius.circular(14),
-            style: GoogleFonts.dmSans(
-              fontSize: 15,
-              fontWeight: FontWeight.w500,
-              color: AppColors.textPrimary,
-            ),
-            decoration: const InputDecoration(
-              prefixIcon: Icon(Icons.villa_rounded, size: 20),
-              hintText: 'Select an estate',
-            ),
-            items: estates
-                .map(
-                  (e) => DropdownMenuItem<String>(
-                    value: e.estateId,
-                    child: Text(e.name),
-                  ),
-                )
-                .toList(),
-          ),
-      ],
     );
   }
 }

@@ -22,6 +22,17 @@ class SupervisorHomeTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final profile = ref.watch(userProfileNotifierProvider);
+    if (profile != null) {
+      debugPrint('─────────────── Supervisor Profile ───────────────');
+      debugPrint('  Name     : ${profile.name}');
+      debugPrint('  Email    : ${profile.email}');
+      debugPrint('  Role     : ${profile.role}');
+      debugPrint('  EstateID : ${profile.estateId ?? "—"}');
+      debugPrint('  Status   : ${profile.status}');
+      debugPrint('──────────────────────────────────────────────────');
+    }
+
     final estate = ref.watch(estateNotifierProvider);
 
     final workersAsync = estate != null

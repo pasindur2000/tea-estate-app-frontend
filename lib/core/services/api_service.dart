@@ -105,6 +105,13 @@ class ApiService {
     required String estateId,
     required String joinedDate,
   }) async {
+    debugPrint('─────────────── createWorker ───────────────');
+    debugPrint('  name       : $name');
+    debugPrint('  nic        : $nic');
+    debugPrint('  phone      : $phone');
+    debugPrint('  estateId   : $estateId');
+    debugPrint('  joinedDate : $joinedDate');
+    debugPrint('────────────────────────────────────────────');
     final json = await _post('/workers/', token, {
       'name': name,
       'nic': nic,
