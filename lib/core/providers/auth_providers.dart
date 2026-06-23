@@ -1,10 +1,13 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/estate.dart';
+import '../models/estate_section.dart';
 import '../models/tea_entry.dart';
 import '../models/user_profile.dart';
+import '../models/weather_data.dart';
 import '../models/worker.dart';
 import '../notifiers/estate_notifier.dart';
 import '../services/api_service.dart';
+import '../services/weather_service.dart';
 import '../services/secure_storage_service.dart';
 import '../../features/auth/models/auth_state.dart';
 import '../../features/auth/notifiers/auth_notifier.dart';
@@ -50,6 +53,16 @@ final workersProvider =
   return ref.read(apiServiceProvider).listWorkers(token, estateId);
 });
 
+final weatherServiceProvider =
+    Provider<WeatherService>((_) => WeatherService());
+
+/// Weather for an estate location string. Cached until the location changes.
+final weatherProvider =
+    FutureProvider.family<WeatherData?, String>((ref, location) async {
+  if (location.trim().isEmpty) return null;
+  return ref.read(weatherServiceProvider).fetchWeather(location);
+});
+
 /// Tea entries for an estate. Pass (estateId, date) — date null fetches all.
 final teaEntriesProvider =
     FutureProvider.family<List<TeaEntry>, (String, String?)>(
@@ -61,3 +74,10 @@ final teaEntriesProvider =
         .listTeaEntries(token, estateId, date: date);
   },
 );
+
+/// Sections for a given estateId.
+final sectionsProvider =
+    FutureProvider.family<List<EstateSection>, String>((ref, estateId) async {
+  final token = ref.read(authTokenProvider)!;
+  return ref.read(apiServiceProvider).listSections(token, estateId);
+});

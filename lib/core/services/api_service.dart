@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../models/estate.dart';
+import '../models/estate_section.dart';
 import '../models/tea_entry.dart';
 import '../models/user_profile.dart';
 import '../models/worker.dart';
@@ -49,6 +50,27 @@ class ApiService {
       Uri.parse('$_baseUrl$path'),
       headers: _headers(token),
       body: jsonEncode(body),
+    );
+    return _handle(response);
+  }
+
+  Future<dynamic> _put(
+    String path,
+    String token,
+    Map<String, dynamic> body,
+  ) async {
+    final response = await http.put(
+      Uri.parse('$_baseUrl$path'),
+      headers: _headers(token),
+      body: jsonEncode(body),
+    );
+    return _handle(response);
+  }
+
+  Future<dynamic> _delete(String path, String token) async {
+    final response = await http.delete(
+      Uri.parse('$_baseUrl$path'),
+      headers: _headers(token),
     );
     return _handle(response);
   }
@@ -177,5 +199,42 @@ class ApiService {
       'role': 'supervisor',
     });
     return UserProfile.fromJson(json['data'] as Map<String, dynamic>);
+  }
+
+  Future<List<EstateSection>> listSections(
+      String token, String estateId) async {
+    final json = await _get('/estates/$estateId/sections/', token);
+    return (json['data'] as List)
+        .map((e) => EstateSection.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<EstateSection> createSection(
+    String token, {
+    required String estateId,
+    required String name,
+  }) async {
+    final json =
+        await _post('/estates/$estateId/sections/', token, {'name': name});
+    return EstateSection.fromJson(json['data'] as Map<String, dynamic>);
+  }
+
+  Future<EstateSection> updateSection(
+    String token, {
+    required String estateId,
+    required String sectionId,
+    required String name,
+  }) async {
+    final json = await _put(
+        '/estates/$estateId/sections/$sectionId', token, {'name': name});
+    return EstateSection.fromJson(json['data'] as Map<String, dynamic>);
+  }
+
+  Future<void> deleteSection(
+    String token, {
+    required String estateId,
+    required String sectionId,
+  }) async {
+    await _delete('/estates/$estateId/sections/$sectionId', token);
   }
 }

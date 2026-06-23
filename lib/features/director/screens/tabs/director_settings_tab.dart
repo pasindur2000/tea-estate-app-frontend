@@ -39,6 +39,11 @@ class DirectorSettingsTab extends ConsumerWidget {
             onTap: () => context.push(AppRoutes.supervisors),
           ),
           _SettingsTile(
+            icon: Icons.grid_view_rounded,
+            label: 'Manage Sections',
+            onTap: () => context.push(AppRoutes.manageSections),
+          ),
+          _SettingsTile(
             icon: Icons.notifications_outlined,
             label: 'Notifications',
             onTap: () {},

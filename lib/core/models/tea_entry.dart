@@ -20,7 +20,7 @@ class TeaEntry {
   });
 
   factory TeaEntry.fromJson(Map<String, dynamic> json) => TeaEntry(
-        entryId: (json['entryId'] ?? json['entry_id'] ?? json['id'] ?? '') as String,
+        entryId: (json['teaEntryId'] ?? json['entryId'] ?? json['entry_id'] ?? json['id'] ?? '') as String,
         estateId: (json['estateId'] ?? json['estate_id'] ?? '') as String,
         workerId: (json['workerId'] ?? json['worker_id'] ?? '') as String,
         workerName: (json['workerName'] ?? json['worker_name'] ?? '') as String,

@@ -6,6 +6,7 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/models/tea_entry.dart';
 import '../../../../core/providers/auth_providers.dart';
 import '../../../../core/router/app_router.dart';
+import '../../../../core/widgets/weather_section.dart';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -123,6 +124,10 @@ class DirectorHomeTab extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                if (estate != null) ...[
+                  const SizedBox(height: 20),
+                  WeatherSection(location: estate.location),
+                ],
                 _buildStatsGrid(
                   totalWorkers: totalWorkersVal,
                   todayHarvest: entryVal(allEntriesAsync, _fmtKg(todayKg)),

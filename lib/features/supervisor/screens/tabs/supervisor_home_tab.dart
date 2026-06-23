@@ -6,6 +6,7 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/models/tea_entry.dart';
 import '../../../../core/providers/auth_providers.dart';
 import '../../../../core/router/app_router.dart';
+import '../../../../core/widgets/weather_section.dart';
 
 String _todayStr() {
   final now = DateTime.now();
@@ -74,8 +75,12 @@ class SupervisorHomeTab extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                if (estate != null) ...[
+                  const SizedBox(height: 20),
+                  WeatherSection(location: estate.location),
+                ],
                 Padding(
-                  padding: const EdgeInsets.only(top: 25),
+                  padding: const EdgeInsets.only(top: 20),
                   child: Row(
                     children: [
                       Expanded(

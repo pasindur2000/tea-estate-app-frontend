@@ -8,6 +8,7 @@ import '../../features/director/screens/add_tea_entry_screen.dart';
 import '../../features/director/screens/add_worker_screen.dart';
 import '../../features/director/screens/director_dashboard_screen.dart';
 import '../../features/director/screens/estate_selection_screen.dart';
+import '../../features/director/screens/manage_sections_screen.dart';
 import '../../features/director/screens/profile_screen.dart';
 import '../../features/director/screens/supervisors_screen.dart';
 import '../../features/supervisor/screens/supervisor_dashboard_screen.dart';
@@ -31,6 +32,7 @@ class AppRoutes {
   static const String addWorker = '/add-worker';
   static const String addTeaEntry = '/add-tea-entry';
   static const String profile = '/profile';
+  static const String manageSections = '/manage-sections';
   // Future deep routes
   static const String estates = '/estates';
   static const String reports = '/reports';
@@ -108,6 +110,11 @@ class AppRouter {
         path: AppRoutes.supervisorDashboard,
         name: 'supervisor',
         builder: (context, state) => const SupervisorDashboardScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.manageSections,
+        name: 'manage-sections',
+        builder: (context, state) => const ManageSectionsScreen(),
       ),
     ],
   );
